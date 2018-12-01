@@ -56,7 +56,7 @@ def main():
     with open('data/ydata-yanswers-question-types-sample_of_1000-v1_1.txt', 'r') as file:
         lines = file.readlines()
 
-        for line in lines[:10]:
+        for line in lines:
             parts = line.split('\t')
             cat, url = parts[0], parts[1]
             question_urls.append((cat, url))
