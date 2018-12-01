@@ -1,4 +1,3 @@
-# import json, urllib.parse, urllib.request
 from lxml import etree
 
 
