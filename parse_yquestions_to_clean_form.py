@@ -6,6 +6,7 @@ IN_FILENAME4000_2 = 'batch2.csv'
 OUT_FILENAME4000 = 'batch1+2-clean.txt'
 OUT_FILENAME5000 = 'all-yquestions-clean.txt'
 
+
 def word_clean(word):
     return word.lower()
 
@@ -14,6 +15,7 @@ def clean(text):
     import re
     apos = '&#39;'
     quot = '&quot;'
+    
     # we want to keep the contractions
     text = text.replace(apos, '\'')
     # but delete quotes
