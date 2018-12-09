@@ -15,7 +15,7 @@ def clean(text):
     import re
     apos = '&#39;'
     quot = '&quot;'
-    
+
     # we want to keep the contractions
     text = text.replace(apos, '\'')
     # but delete quotes
