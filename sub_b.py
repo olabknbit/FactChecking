@@ -54,31 +54,6 @@ def get_data():
     return data, target
 
 
-def get_movie_data():
-    def get_data_from_file(filename, category):
-        with open(filename, 'r', encoding="ISO-8859-1") as movies_file:
-            data = movies_file.readlines()
-            target = [category for _ in data]
-            return data, target
-
-    categories_d = {'objective': 0, 'subjective': 1}
-    objective_data, objective_target = get_data_from_file('data/b/movie-objective.5000.txt', 0)
-    subjective_data, subjective_target = get_data_from_file('data/b/movie-subjective.5000.txt', 1)
-    data = objective_data + subjective_data
-    target = objective_target + subjective_target
-
-    indexing = list(range(len(data)))
-    import random
-    random.shuffle(indexing)
-    shuffled_data = []
-    shuffled_target = []
-    for index in indexing:
-        shuffled_data.append(data[index])
-        shuffled_target.append(target[index])
-
-    return shuffled_data, shuffled_target
-
-
 def get_predictions_naive_bayes(train_data, train_target, test_data):
     from naive_bayes import NaiveBayes
     nb = NaiveBayes()
