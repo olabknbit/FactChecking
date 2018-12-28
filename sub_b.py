@@ -157,11 +157,11 @@ def get_data():
 
 def get_movie_data():
     def get_data_from_file(filename, category):
-        with open(filename, 'r', encoding = "ISO-8859-1") as movies_file:
-
+        with open(filename, 'r', encoding="ISO-8859-1") as movies_file:
             data = movies_file.readlines()
             target = [category for _ in data]
             return data, target
+
     categories_d = {'objective': 0, 'subjective': 1}
     objective_data, objective_target = get_data_from_file('data/b/movie-objective.5000.txt', 0)
     subjective_data, subjective_target = get_data_from_file('data/b/movie-subjective.5000.txt', 1)

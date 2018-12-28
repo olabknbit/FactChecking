@@ -86,6 +86,7 @@ def write_snippets_to_file(mode, start_from=None):
 
 if __name__ == '__main__':
     import nltk
+
     nltk.download('stopwords')
     write_snippets_to_file('test')
     write_snippets_to_file('train')
