@@ -1,14 +1,3 @@
-def split_train_test(data, target, split=0.5):
-    n = int(len(data) * split)
-    train_data = data[:n]
-    train_target = target[:n]
-
-    test_data = data[n:]
-    test_target = target[n:]
-
-    return train_data, train_target, test_data, test_target
-
-
 def clean_data(data):
     import re
 
@@ -24,34 +13,64 @@ def clean_data(data):
     return preprocess_reviews(data)
 
 
-def get_data():
-    def get_data_from_file(filename, categories_d, r=32):
-        with open(filename, 'r') as questions_file:
-            data = []
-            target = []
-            lines = questions_file.readlines()
+class Data:
+    def __init__(self):
+        self.questions_d = {}
+        self.data = None
+        self.target = None
+        self.categories_d = {'True': 0, 'False': 1}
 
-            import random
-            random.seed(r)
-            random.shuffle(lines)
+        self.get_data()
 
-            for line in lines:
-                prts = line.split('\t')
-                cat = prts[1]
-                answer = prts[2].strip()
-                if cat == 'True' or cat == 'False':
-                    data.append(answer)
-                    target.append(categories_d[cat])
+    def get_data(self):
+        def get_data_from_file(filename, r=32):
+            with open(filename, 'r') as questions_file:
+                data = []
+                target = []
+                lines = questions_file.readlines()
 
+                import random
+                random.seed(r)
+                random.shuffle(lines)
+
+                last_question = ''
+                answers = []
+                for line in lines:
+                    prts = line.split('\t')
+                    tag = prts[0]
+                    cat = prts[1]
+                    text = prts[2].strip()
+                    if cat == 'NA':
+                        if last_question != '':
+                            self.questions_d[tag] = answers
+                        last_question = text
+                        answers = []
+                    if cat == 'True' or cat == 'False':
+                        data.append(text)
+                        target.append(self.categories_d[cat])
+                        answers.append(tag)
             return data, target
 
-    categories_d = {'True': 0, 'False': 1}
-    train_data, train_target = get_data_from_file('data/b/b-factual-q-a-clean-test.txt', categories_d)
-    test_data, test_target = get_data_from_file('data/b/b-factual-q-a-clean-train.txt', categories_d)
+        train_data, train_target = get_data_from_file('data/b/b-factual-q-a-clean-test.txt')
+        test_data, test_target = get_data_from_file('data/b/b-factual-q-a-clean-train.txt')
 
-    data = train_data + test_data
-    target = train_target + test_target
-    return data, target
+        self.data = train_data + test_data
+        self.target = train_target + test_target
+
+    def split_train_test(self, split=0.5, data_target=None):
+        if data_target is None:
+            data, target = self.data, self.target
+        else:
+            data, target = data_target
+
+        n = int(len(data) * split)
+        train_data = data[:n]
+        train_target = target[:n]
+
+        test_data = data[n:]
+        test_target = target[n:]
+
+        return train_data, train_target, test_data, test_target
 
 
 def get_predictions_naive_bayes(train_data, train_target, test_data):
@@ -137,7 +156,8 @@ def store_preds(preds, title):
 
 
 def main():
-    data, target = get_data()
+    d = Data()
+    data, target = d.data, d.target
 
     ## get_accuracy_naive_bayes(data, target)
     # Accuracy %d 0.6557377049180327
