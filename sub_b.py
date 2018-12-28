@@ -18,15 +18,17 @@ class Data:
         self.questions_d = {}
         self.data = None
         self.target = None
+        self.tags = None
         self.categories_d = {'True': 0, 'False': 1}
 
         self.get_data()
 
     def get_data(self):
-        def get_data_from_file(filename, r=32):
+        def get_data_from_file(filename, questions_d, categories_d, r=32):
             with open(filename, 'r') as questions_file:
                 data = []
                 target = []
+                tags = []
                 lines = questions_file.readlines()
 
                 import random
@@ -42,20 +44,25 @@ class Data:
                     text = prts[2].strip()
                     if cat == 'NA':
                         if last_question != '':
-                            self.questions_d[tag] = answers
+                            questions_d[tag] = answers
                         last_question = text
                         answers = []
                     if cat == 'True' or cat == 'False':
-                        data.append(text)
-                        target.append(self.categories_d[cat])
                         answers.append(tag)
-            return data, target
+                        data.append(text)
+                        target.append(categories_d[cat])
+                        tags.append(tag)
+            return data, target, tags
 
-        train_data, train_target = get_data_from_file('data/b/b-factual-q-a-clean-test.txt')
-        test_data, test_target = get_data_from_file('data/b/b-factual-q-a-clean-train.txt')
+        train_data, train_target, train_tags = get_data_from_file('data/b/b-factual-q-a-clean-test.txt',
+                                                                  self.questions_d,
+                                                                  self.categories_d)
+        test_data, test_target, test_tags = get_data_from_file('data/b/b-factual-q-a-clean-train.txt', self.questions_d,
+                                                               self.categories_d)
 
         self.data = train_data + test_data
         self.target = train_target + test_target
+        self.tags = train_tags + test_tags
 
     def split_train_test(self, split=0.5, data_target=None):
         if data_target is None:
@@ -150,14 +157,14 @@ def run_cross_validation(data, target):
     return nb_preds, lr_preds, target
 
 
-def store_preds(preds, title):
+def store_preds(tags, preds, title):
     with open('data/b/' + title + '.txt', 'w') as f:
-        f.writelines([str(pred) + '\n' for pred in preds])
+        f.writelines([tag + '\t' + str(pred) + '\n' for tag, pred in zip(tags, preds)])
 
 
 def main():
     d = Data()
-    data, target = d.data, d.target
+    data, target, tags = d.data, d.target, d.tags
 
     ## get_accuracy_naive_bayes(data, target)
     # Accuracy %d 0.6557377049180327
@@ -174,8 +181,12 @@ def main():
     # [Accuracy]: 0.6739130434782609
 
     nb_preds, lr_preds, target = run_cross_validation(data, target)
-    store_preds(nb_preds, "nb_preds")
-    store_preds(lr_preds, "lr_preds")
+    store_preds(tags, nb_preds, "nb_preds")
+    store_preds(tags, lr_preds, "lr_preds")
+
+    # from cosine_similarity import CosineSimilarity
+    # cs = CosineSimilarity()
+    # cs.d_train()
 
 
 if __name__ == "__main__":
