@@ -24,107 +24,6 @@ def clean_data(data):
     return preprocess_reviews(data)
 
 
-def clean_bag_of_words_stop_words(data):
-    import nltk
-    from nltk.corpus import stopwords
-    nltk.download('stopwords')
-    stopwords_set = set(stopwords.words("english"))
-
-    bag_of_words = []
-    for text in data:
-        words_filtered = [e.lower() for e in text.split() if len(e) >= 3]
-        words_cleaned = [word for word in words_filtered
-                         if 'http' not in word
-                         and not word.startswith('@')
-                         and not word.startswith('#')
-                         and word != 'RT']
-        words_without_stopwords = [word for word in words_cleaned if not word in stopwords_set]
-        bag_of_words.append(words_without_stopwords)
-
-    return bag_of_words
-
-
-def naive_bayes(train_data, train_target, test_data, test_target):
-    import nltk
-    train_data_bag_of_words = clean_bag_of_words_stop_words(train_data)
-    data = [(words_without_stopwords, label) for words_without_stopwords, label in
-            zip(train_data_bag_of_words, train_target)]
-
-    # Extracting word features
-    def get_words_in_text(text):
-        all = []
-        for (words, sentiment) in text:
-            all.extend(words)
-        return all
-
-    def get_word_features(wordlist):
-        wordlist = nltk.FreqDist(wordlist)
-        features = wordlist.keys()
-        return features
-
-    w_features = get_word_features(get_words_in_text(data))
-
-    def extract_features(document):
-        document_words = set(document)
-        features = {}
-        for word in w_features:
-            features['contains(%s)' % word] = (word in document_words)
-        return features
-
-    # Training the Naive Bayes classifier
-    training_set = nltk.classify.apply_features(extract_features, data)
-    classifier = nltk.NaiveBayesClassifier.train(training_set)
-
-    guessed = 0
-    for obj, target in zip(test_data, test_target):
-        pred = classifier.classify(extract_features(obj.split()))
-        if pred == target:
-            guessed += 1
-
-    print('[Accuracy]: %f = %s/%s ' % (guessed / len(test_data), guessed, len(test_data)))
-
-
-def run_linear_regression(data, target, verbose=False):
-    from sklearn.feature_extraction.text import CountVectorizer
-    cv = CountVectorizer(analyzer='word', lowercase=False, )
-    features = cv.fit_transform(data)
-    features_nd = features.toarray()  # for easy usage
-
-    from sklearn.model_selection import train_test_split
-
-    X_train, X_test, y_train, y_test = train_test_split(features_nd, target, train_size=0.5, test_size=0.3,
-                                                        random_state=1234, shuffle=False)
-
-    from sklearn.linear_model import LogisticRegression
-    log_model = LogisticRegression(solver='lbfgs')
-
-    log_model = log_model.fit(X=X_train, y=y_train)
-
-    y_pred = log_model.predict(X_test)
-
-    from sklearn.metrics import accuracy_score
-    print('[Accuracy]:', accuracy_score(y_test, y_pred))
-
-    if verbose:
-        feature_to_coef = {
-            word: coef for word, coef in zip(
-            cv.get_feature_names(), log_model.coef_[0]
-        )
-        }
-        print("best positive words")
-        for best_positive in sorted(
-                feature_to_coef.items(),
-                key=lambda x: x[1],
-                reverse=True)[:5]:
-            print(best_positive)
-
-        print("best negative words")
-        for best_negative in sorted(
-                feature_to_coef.items(),
-                key=lambda x: x[1])[:5]:
-            print(best_negative)
-
-
 def get_data():
     def get_data_from_file(filename, categories_d, r=32):
         with open(filename, 'r') as questions_file:
@@ -180,25 +79,108 @@ def get_movie_data():
     return shuffled_data, shuffled_target
 
 
-def get_predictions_naive_bayes(data, target):
-    train_data, train_target, test_data, test_target = split_train_test(data, target)
-    naive_bayes(train_data, train_target, test_data, test_target)
+def get_predictions_naive_bayes(train_data, train_target, test_data):
+    from naive_bayes import NaiveBayes
+    nb = NaiveBayes()
+    nb.train(train_data, train_target)
+    return nb.get_predictions(test_data)
 
 
-def get_predictions_linear_regression(data, target):
-    run_linear_regression(data, target)
+def get_accuracy_naive_bayes(train_data, train_target, test_data, test_target):
+    predictions = get_predictions_naive_bayes(train_data, train_target, test_data)
+    from sklearn.metrics import accuracy_score
+    return accuracy_score(test_target, predictions)
+
+
+def get_predictions_logistic_regression(train_data, train_target, test_data):
+    from logistic_regression import LogisticRegression
+    lr = LogisticRegression()
+    lr.train(train_data, train_target)
+    return lr.get_predictions(test_data)
+
+
+def get_accuracy_logistic_regression(train_data, train_target, test_data, test_target):
+    predictions = get_predictions_logistic_regression(train_data, train_target, test_data)
+    from sklearn.metrics import accuracy_score
+    return accuracy_score(test_target, predictions)
+
+
+def run_cross_validation(data, target):
+    import numpy as np
+    from logistic_regression import prep_data
+    lr_data = np.array(prep_data(data))
+
+    nb_data = np.array(data)
+
+    positives_accuracy_nb, negatives_accuracy_nb, positives_accuracy_lr, negatives_accuracy_lr = 0., 0., 0., 0.
+    negatives_count, positives_count = 0, 0
+    from sklearn.model_selection import LeaveOneOut
+    loo = LeaveOneOut()
+    loo.get_n_splits(data)
+
+    target = np.array(target)
+    nb_preds = []
+    lr_preds = []
+    for train_index, test_index in loo.split(data):
+        train_data, test_data = nb_data[train_index], nb_data[test_index]
+        train_target, test_target = target[train_index], target[test_index]
+        nb_pred = get_predictions_naive_bayes(train_data, train_target, test_data)
+
+        train_data, test_data = lr_data[train_index], lr_data[test_index]
+        lr_pred = get_predictions_logistic_regression(train_data, train_target, test_data)
+        if test_target[0] == 0:
+            negatives_count += 1.
+            if nb_pred[0] == 0:
+                negatives_accuracy_nb += 1.
+            if lr_pred[0] == 0:
+                negatives_accuracy_lr += 1.
+        else:
+            positives_count += 1.
+            if nb_pred[0] == 1:
+                positives_accuracy_nb += 1.
+            if lr_pred[0] == 1:
+                positives_accuracy_lr += 1.
+        nb_preds.append(nb_pred[0])
+        lr_preds.append(lr_pred[0])
+
+    if positives_count == 0:
+        positives_count = 1
+    if negatives_count == 0:
+        negatives_count = 1
+
+    print('NB p %f (%d/%d) NB n %f (%d/%d) \nLR p %f  (%d/%d) LR n %f (%d/%d) '
+          % (positives_accuracy_nb / positives_count, positives_accuracy_nb, positives_count,
+             negatives_accuracy_nb / negatives_count, negatives_accuracy_nb, negatives_count,
+             positives_accuracy_lr / positives_count, positives_accuracy_lr, positives_count,
+             negatives_accuracy_lr / negatives_count, negatives_accuracy_lr, negatives_count))
+    return nb_preds, lr_preds, target
+
+
+def store_preds(preds, title):
+    with open('data/b/' + title + '.txt', 'w') as f:
+        f.writelines([str(pred) + '\n' for pred in preds])
 
 
 def main():
     data, target = get_data()
-    # data = clean_data(data)
 
-    # TODO create different train test sets and compute average accuracy - these results change a lot based on split
-    get_predictions_naive_bayes(data, target)
-    # [Accuracy]: 0.647059 = 99/153
+    ## get_accuracy_naive_bayes(data, target)
+    # Accuracy %d 0.6557377049180327
 
-    get_predictions_linear_regression(data, target)
+    ## get_accuracy_logistic_regression(data, target):
+    # from logistic_regression import prep_data
+    # features_nd = prep_data(data)
+    # from sklearn.model_selection import train_test_split
+    # X_train, X_test, y_train, y_test = train_test_split(features_nd, target, train_size=0.5, test_size=0.3,
+    #                                                     random_state=1234, shuffle=False)
+    # # print(y_test[0], X_test[0])
+    # acc=get_accuracy_logistic_regression(X_train, y_train, X_test, y_test)
+    # print(acc)
     # [Accuracy]: 0.6739130434782609
+
+    nb_preds, lr_preds, target = run_cross_validation(data, target)
+    store_preds(nb_preds, "nb_preds")
+    store_preds(lr_preds, "lr_preds")
 
 
 if __name__ == "__main__":
