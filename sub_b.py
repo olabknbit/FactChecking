@@ -180,25 +180,24 @@ def get_movie_data():
     return shuffled_data, shuffled_target
 
 
-def get_predictions_naive_bayes():
-    data, target = get_data()
-    data = clean_data(data)
+def get_predictions_naive_bayes(data, target):
     train_data, train_target, test_data, test_target = split_train_test(data, target)
     naive_bayes(train_data, train_target, test_data, test_target)
 
 
-def get_predictions_linear_regression():
-    data, target = get_data()
-    data = clean_data(data)
+def get_predictions_linear_regression(data, target):
     run_linear_regression(data, target)
 
 
 def main():
+    data, target = get_data()
+    # data = clean_data(data)
+
     # TODO create different train test sets and compute average accuracy - these results change a lot based on split
-    get_predictions_naive_bayes()
+    get_predictions_naive_bayes(data, target)
     # [Accuracy]: 0.647059 = 99/153
 
-    get_predictions_linear_regression()
+    get_predictions_linear_regression(data, target)
     # [Accuracy]: 0.6739130434782609
 
 
