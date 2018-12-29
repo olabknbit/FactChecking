@@ -1,7 +1,35 @@
-CS_PREDS_FILENAME = 'data/b/cs_preds2.txt'
-LR_PREDS_FILENAME = 'data/b/lr_preds2.txt'
-NB_PREDS_FILENAME = 'data/b/nb_preds2.txt'
-CS_SCORES_FILENAME = 'data/b/cs_scores.txt'
+# dirs and filenames
+PREFIX = 'data/b/'
+PREDS_DIR = 'preds/'
+FEATURES_DIR = 'features/'
+RESULTS_DIR = 'results/'
+ADD_ON = ''
+CS_FEATURES_FILENAME = 'data/b/features/web_features.txt'
+
+# methods
+LR = 'lr'
+NB = 'nb'
+CS = 'cs'
+
+
+def get_pred_filename(method):
+    return PREFIX + PREDS_DIR + method + '_preds' + ADD_ON + '.txt'
+
+
+def get_cs_pred_filename():
+    return get_pred_filename('cs')
+
+
+def get_nb_pred_filename():
+    return get_pred_filename('nb')
+
+
+def get_lr_pred_filename():
+    return get_pred_filename('lr')
+
+
+def get_results_filename(methods):
+    return PREFIX + RESULTS_DIR + '-'.join(methods) + ADD_ON + '.txt'
 
 
 def clean_data(data):
@@ -54,6 +82,10 @@ class Data:
                 target = []
                 tags = []
                 lines = questions_file.readlines()
+
+                import random
+                random.seed(32)
+                random.shuffle(lines)
 
                 last_question_tag = ''
                 answers = []
@@ -197,8 +229,8 @@ def get_cross_validation_predictions(data_obj, data, target, tags, method):
 
     preds = []
     for train_index, test_index in loo.split(data):
-        # indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
-        # train_index = np.delete(train_index, indexes_to_leave_out, 0)
+        indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
+        train_index = np.delete(train_index, indexes_to_leave_out, 0)
         train_target, test_target = target[train_index], target[test_index]
         train_data, test_data = data[train_index], data[test_index]
         pred = method(train_data, train_target, test_data)
@@ -227,46 +259,48 @@ def store_preds(tags, preds, title):
 
 def get_lr_preds(data_obj):
     import os
-    exists = os.path.isfile(LR_PREDS_FILENAME)
+    filename = get_lr_pred_filename()
+    exists = os.path.isfile(filename)
     if exists:
-        lr_preds, tags = read_preds(LR_PREDS_FILENAME)
+        lr_preds, tags = read_preds(filename)
 
     else:
         from logistic_regression import prep_data
         lr_data = prep_data(data_obj.data)
         tags = data_obj.tags
         lr_preds, target = get_cross_validation_predictions_lr(data_obj, lr_data, data_obj.target, tags)
-        store_preds(data_obj.tags, lr_preds, LR_PREDS_FILENAME)
+        store_preds(data_obj.tags, lr_preds, filename)
     return lr_preds, tags
 
 
 def get_nb_preds(data_obj):
     import os
-    exists = os.path.isfile(NB_PREDS_FILENAME)
+    filename = get_nb_pred_filename()
+    exists = os.path.isfile(filename)
     if exists:
-        nb_preds, tags = read_preds(NB_PREDS_FILENAME)
+        nb_preds, tags = read_preds(filename)
     else:
         nb_preds, target = get_cross_validation_predictions_nb(data_obj, data_obj.data, data_obj.target, data_obj.tags)
         tags = data_obj.tags
-        store_preds(data_obj.tags, nb_preds, NB_PREDS_FILENAME)
+        store_preds(data_obj.tags, nb_preds, filename)
     return nb_preds, tags
 
 
 def get_cs_preds(data_obj):
     import os
-    CS_SCORES_FILENAME = 'data/b/web_features.txt'
-    exists = os.path.isfile(CS_PREDS_FILENAME)
+    filename = get_cs_pred_filename()
+    exists = os.path.isfile(filename)
     if exists:
-        cs_preds, tags = read_preds(CS_PREDS_FILENAME)
+        cs_preds, tags = read_preds(filename)
         return cs_preds, tags
     else:
-        similarity_scores, tags = read_features(CS_SCORES_FILENAME)
+        similarity_scores, tags = read_features(CS_FEATURES_FILENAME)
     #     TODO: fix web scrapping before using
     # else:
     #     from cosine_similarity import CosineSimilarity
     #     cs = CosineSimilarity()
     #     similarity_scores, tags = cs.predict(data_obj)
-    #     store_preds(tags, similarity_scores, CS_SCORES_FILENAME)
+    #     store_preds(tags, similarity_scores, filename)
 
     import numpy as np
     data = np.array(similarity_scores)
@@ -283,7 +317,7 @@ def sort_tags(preds, ts, tags):
     return new_preds, tags
 
 
-def multifaceted_predictions(data_obj, lr=True, nb=True, cs=True):
+def multifaceted_predictions(data_obj, methods):
     def get_baseline(coefs):
         return sum(coefs) / len(coefs)
 
@@ -301,17 +335,17 @@ def multifaceted_predictions(data_obj, lr=True, nb=True, cs=True):
 
     various_preds = []
     coefs = []
-    if lr:
+    if LR in methods:
         coef = 1
         lr_preds, lr_tags = sort_tags(*get_lr_preds(data_obj), data_obj.tags)
         various_preds.append(lr_preds)
         coefs.append(coef)
-    if nb:
+    if NB in methods:
         coef = 1
         nb_preds, nb_tags = sort_tags(*get_nb_preds(data_obj), data_obj.tags)
         various_preds.append(nb_preds)
         coefs.append(coef)
-    if cs:
+    if CS in methods:
         coef = 1
         cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
         various_preds.append(cs_preds)
@@ -320,13 +354,15 @@ def multifaceted_predictions(data_obj, lr=True, nb=True, cs=True):
     return get_preds(zip(*various_preds), coefs)
 
 
-def multifaceted_accuracy(data_obj):
-    predictions = multifaceted_predictions(data_obj, nb=False, cs=False)
+def multifaceted_accuracy(data_obj, methods):
+    predictions = multifaceted_predictions(data_obj, methods)
+
     from sklearn.metrics import accuracy_score, precision_score, average_precision_score, recall_score, \
         jaccard_similarity_score
     target = data_obj.target
-    # target = [0 if i == 1 else 1 for i in target]
-    # predictions = [0 if i == 1 else 1 for i in predictions]
+    # swap 0s and 1s to get positive class be True instead of False
+    target = [0 if i == 1 else 1 for i in target]
+    predictions = [0 if i == 1 else 1 for i in predictions]
     return accuracy_score(target, predictions), \
            precision_score(target, predictions), \
            average_precision_score(target, predictions), \
@@ -336,18 +372,22 @@ def multifaceted_accuracy(data_obj):
 
 def main():
     d = Data()
-    # accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d)
-    # print("accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f"
-    #       % (accuracy, precision, AP, recall, IoU))
-    l = d.split_train_test()
-    acc = get_accuracy_naive_bayes(*l)
-    print(acc)
-
-    from logistic_regression import prep_data
-    data = prep_data(d.data)
-    l = split_train_test(data, d.target)
-    acc = get_accuracy_logistic_regression(*l)
-    print(acc)
+    methods = [LR, NB, CS]
+    accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
+    results = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
+              % (accuracy, precision, AP, recall, IoU)
+    print(results)
+    # with open(get_results_filename(methods), 'w') as f:
+    #     f.write(results)
+    # l = d.split_train_test()
+    # acc = get_accuracy_naive_bayes(*l)
+    # print(acc)
+    #
+    # from logistic_regression import prep_data
+    # data = prep_data(d.data)
+    # l = split_train_test(data, d.target)
+    # acc = get_accuracy_logistic_regression(*l)
+    # print(acc)
 
 
 if __name__ == "__main__":
