@@ -283,14 +283,19 @@ def multifaceted_predictions(data_obj):
 
 def multifaceted_accuracy(data_obj):
     predictions = multifaceted_predictions(data_obj)
-    from sklearn.metrics import accuracy_score
-    return accuracy_score(data_obj.target, predictions)
+    from sklearn.metrics import accuracy_score, precision_score, average_precision_score, recall_score, jaccard_similarity_score
+    return accuracy_score(data_obj.target, predictions), \
+           precision_score(data_obj.target, predictions), \
+           average_precision_score(data_obj.target, predictions), \
+           recall_score(data_obj.target, predictions), \
+           jaccard_similarity_score(data_obj.target, predictions)
 
 
 def main():
     d = Data()
-    accuracy = multifaceted_accuracy(d)
-    print(accuracy)
+    accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d)
+    print("accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f"
+          % (accuracy, precision, AP, recall, IoU))
 
 
 if __name__ == "__main__":
