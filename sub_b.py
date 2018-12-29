@@ -3,6 +3,7 @@ PREFIX = 'data/b/'
 PREDS_DIR = 'preds/'
 FEATURES_DIR = 'features/'
 RESULTS_DIR = 'results/'
+DATA_DIR = 'data/'
 ADD_ON = ''
 CS_FEATURES_FILENAME = 'data/b/features/web_features.txt'
 
@@ -10,6 +11,18 @@ CS_FEATURES_FILENAME = 'data/b/features/web_features.txt'
 LR = 'lr'
 NB = 'nb'
 CS = 'cs'
+
+
+def get_data_filename(mode):
+    return PREFIX + DATA_DIR + 'b-factual-q-a-clean-' + mode + '.txt'
+
+
+def get_data_train_filename():
+    return get_data_filename('train')
+
+
+def get_data_test_filename():
+    return get_data_filename('test')
 
 
 def get_pred_filename(method):
@@ -107,10 +120,9 @@ class Data:
                 questions_d[last_question_tag] = answers
             return data, target, tags
 
-        train_data, train_target, train_tags = get_data_from_file('data/b/b-factual-q-a-clean-test.txt',
-                                                                  self.questions_d,
+        train_data, train_target, train_tags = get_data_from_file(get_data_train_filename(), self.questions_d,
                                                                   self.categories_d)
-        test_data, test_target, test_tags = get_data_from_file('data/b/b-factual-q-a-clean-train.txt', self.questions_d,
+        test_data, test_target, test_tags = get_data_from_file(get_data_test_filename(), self.questions_d,
                                                                self.categories_d)
 
         self.data = train_data + test_data
@@ -371,15 +383,20 @@ def multifaceted_accuracy(data_obj, methods):
            jaccard_similarity_score(target, predictions)
 
 
+def save_results_to_file(results, methods):
+    with open(get_results_filename(methods), 'w') as f:
+        f.write(results)
+
+
 def main():
     d = Data()
     methods = [CS, LR, NB]
+    methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     results = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
               % (accuracy, precision, AP, recall, IoU)
     print(results)
-    with open(get_results_filename(methods), 'w') as f:
-        f.write(results)
+    save_results_to_file(results, methods)
 
 
 if __name__ == "__main__":

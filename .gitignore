@@ -1,6 +1,8 @@
 .DS_Store
 .idea/
-data/
+data/a/
+data/b/original_data/
+data/b/unused
 venv/
 chromedriver/
 __pycache__/
