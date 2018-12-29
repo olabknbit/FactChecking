@@ -1,6 +1,6 @@
-CS_PREDS_FILENAME = 'data/b/cs_preds.txt'
-LR_PREDS_FILENAME = 'data/b/lr_preds.txt'
-NB_PREDS_FILENAME = 'data/b/nb_preds.txt'
+CS_PREDS_FILENAME = 'data/b/cs_preds2.txt'
+LR_PREDS_FILENAME = 'data/b/lr_preds2.txt'
+NB_PREDS_FILENAME = 'data/b/nb_preds2.txt'
 CS_SCORES_FILENAME = 'data/b/cs_scores.txt'
 
 
@@ -197,8 +197,8 @@ def get_cross_validation_predictions(data_obj, data, target, tags, method):
 
     preds = []
     for train_index, test_index in loo.split(data):
-        indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
-        train_index = np.delete(train_index, indexes_to_leave_out, 0)
+        # indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
+        # train_index = np.delete(train_index, indexes_to_leave_out, 0)
         train_target, test_target = target[train_index], target[test_index]
         train_data, test_data = data[train_index], data[test_index]
         pred = method(train_data, train_target, test_data)
@@ -254,9 +254,9 @@ def get_nb_preds(data_obj):
 
 def get_cs_preds(data_obj):
     import os
-    exists = os.path.isfile(CS_PREDS_FILENAME)
     CS_SCORES_FILENAME = 'data/b/web_features.txt'
-    if not exists:
+    exists = os.path.isfile(CS_PREDS_FILENAME)
+    if exists:
         cs_preds, tags = read_preds(CS_PREDS_FILENAME)
         return cs_preds, tags
     else:
@@ -283,41 +283,71 @@ def sort_tags(preds, ts, tags):
     return new_preds, tags
 
 
-def multifaceted_predictions(data_obj):
-    lr_preds, lr_tags = sort_tags(*get_lr_preds(data_obj), data_obj.tags)
-    nb_preds, nb_tags = sort_tags(*get_nb_preds(data_obj), data_obj.tags)
-    cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
+def multifaceted_predictions(data_obj, lr=True, nb=True, cs=True):
+    def get_baseline(coefs):
+        return sum(coefs) / len(coefs)
 
-    A = 1
-    B = 1
-    C = 1
+    def get_preds(various_preds, coefs):
+        baseline = get_baseline(coefs)
+        preds = []
+        for var_p in various_preds:
+            s = sum([p * c for p, c in zip(var_p, coefs)])
+            if s > baseline:
+                pred = 1
+            else:
+                pred = 0
+            preds.append(pred)
+        return preds
 
-    preds = []
-    for lr_pred, nb_pred, cs_pred in zip(lr_preds, nb_preds, cs_preds):
-        if lr_pred * A + nb_pred * B + cs_pred * C > (A + B + C) / 3:
-            pred = 1
-        else:
-            pred = 0
-        preds.append(pred)
-    return preds
+    various_preds = []
+    coefs = []
+    if lr:
+        coef = 1
+        lr_preds, lr_tags = sort_tags(*get_lr_preds(data_obj), data_obj.tags)
+        various_preds.append(lr_preds)
+        coefs.append(coef)
+    if nb:
+        coef = 1
+        nb_preds, nb_tags = sort_tags(*get_nb_preds(data_obj), data_obj.tags)
+        various_preds.append(nb_preds)
+        coefs.append(coef)
+    if cs:
+        coef = 1
+        cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
+        various_preds.append(cs_preds)
+        coefs.append(coef)
+
+    return get_preds(zip(*various_preds), coefs)
 
 
 def multifaceted_accuracy(data_obj):
-    predictions = multifaceted_predictions(data_obj)
+    predictions = multifaceted_predictions(data_obj, nb=False, cs=False)
     from sklearn.metrics import accuracy_score, precision_score, average_precision_score, recall_score, \
         jaccard_similarity_score
-    return accuracy_score(data_obj.target, predictions), \
-           precision_score(data_obj.target, predictions), \
-           average_precision_score(data_obj.target, predictions), \
-           recall_score(data_obj.target, predictions), \
-           jaccard_similarity_score(data_obj.target, predictions)
+    target = data_obj.target
+    # target = [0 if i == 1 else 1 for i in target]
+    # predictions = [0 if i == 1 else 1 for i in predictions]
+    return accuracy_score(target, predictions), \
+           precision_score(target, predictions), \
+           average_precision_score(target, predictions), \
+           recall_score(target, predictions), \
+           jaccard_similarity_score(target, predictions)
 
 
 def main():
     d = Data()
-    accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d)
-    print("accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f"
-          % (accuracy, precision, AP, recall, IoU))
+    # accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d)
+    # print("accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f"
+    #       % (accuracy, precision, AP, recall, IoU))
+    l = d.split_train_test()
+    acc = get_accuracy_naive_bayes(*l)
+    print(acc)
+
+    from logistic_regression import prep_data
+    data = prep_data(d.data)
+    l = split_train_test(data, d.target)
+    acc = get_accuracy_logistic_regression(*l)
+    print(acc)
 
 
 if __name__ == "__main__":
