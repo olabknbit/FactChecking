@@ -1,3 +1,8 @@
+CS_PREDS_FILENAME = 'data/b/cs_preds.txt'
+LR_PREDS_FILENAME = 'data/b/lr_preds.txt'
+NB_PREDS_FILENAME = 'data/b/nb_preds.txt'
+
+
 def clean_data(data):
     import re
 
@@ -91,8 +96,8 @@ class Data:
         return sorted_question_snippets, self.data, self.tags
 
     def get_question_snippets(self):
-        with open('data/b/b-factual-q-web-results-train.txt', 'r') as f_train, open(
-                'data/b/b-factual-q-web-results-test.txt', 'r') as f_test:
+        with open('data/b/b-factual-q-web-results-train.txt', 'r') as f_train, \
+                open('data/b/b-factual-q-web-results-test.txt', 'r') as f_test:
             snippets = {}
             lines = f_train.readlines() + f_test.readlines()
             for line in lines:
@@ -101,6 +106,20 @@ class Data:
                 snippet = prts[1].strip()
                 snippets[tag] = snippet
         return snippets
+
+
+def read_preds(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        tags = []
+        preds = []
+        for line in lines:
+            prts = line.split('\t')
+            tag = prts[0]
+            pred = int(prts[1].strip())
+            preds.append(pred)
+            tags.append(tag)
+    return preds, tags
 
 
 def get_predictions_naive_bayes(train_data, train_target, test_data):
@@ -166,46 +185,96 @@ def get_cross_validation_predictions_cs(data, target):
 
 
 def store_preds(tags, preds, title):
-    with open('data/b/' + title + '.txt', 'w') as f:
+    with open(title, 'w') as f:
         f.writelines([tag + '\t' + str(pred) + '\n' for tag, pred in zip(tags, preds)])
+
+
+def get_lr_preds(data_obj):
+    import os
+    exists = os.path.isfile(LR_PREDS_FILENAME)
+    if exists:
+        lr_preds, tags = read_preds(LR_PREDS_FILENAME)
+
+    else:
+        from logistic_regression import prep_data
+        lr_data = prep_data(data_obj.data)
+        tags = data_obj.tags
+        lr_preds, target = get_cross_validation_predictions_lr(lr_data, data_obj.target)
+        store_preds(data_obj.tags, lr_preds, LR_PREDS_FILENAME)
+    return lr_preds, tags
+
+
+def get_nb_preds(data_obj):
+    import os
+    exists = os.path.isfile(NB_PREDS_FILENAME)
+    if exists:
+        nb_preds, tags = read_preds(NB_PREDS_FILENAME)
+    else:
+        nb_preds, target = get_cross_validation_predictions_nb(data_obj.data, data_obj.target)
+        tags = data_obj.tags
+        store_preds(data_obj.tags, nb_preds, NB_PREDS_FILENAME)
+    return nb_preds, tags
+
+
+def get_cs_preds(data_obj):
+    import os
+    exists = os.path.isfile(CS_PREDS_FILENAME)
+    if exists:
+        cs_preds, tags = read_preds(CS_PREDS_FILENAME)
+    else:
+        from cosine_similarity import CosineSimilarity
+        cs = CosineSimilarity()
+        similarity_scores, tags = cs.predict(data_obj)
+        store_preds(tags, similarity_scores, "cs_scores")
+
+        import numpy as np
+        data = np.array([[s] for s in similarity_scores])
+
+        target = np.array(data_obj.target)
+        cs_preds, target = get_cross_validation_predictions_cs(data, target)
+        store_preds(tags, cs_preds, CS_PREDS_FILENAME)
+    return cs_preds, tags
+
+
+def sort_tags(preds, ts, tags):
+    new_preds = []
+    for tag in tags:
+        new_preds.append(preds[ts.index(tag)])
+    return new_preds, tags
+
+
+def multifaceted_predictions(data_obj):
+    lr_preds, lr_tags = sort_tags(*get_lr_preds(data_obj), data_obj.tags)
+    nb_preds, nb_tags = sort_tags(*get_nb_preds(data_obj), data_obj.tags)
+    cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
+
+    for lr_t, nb_t, cs_t, tag in zip(lr_tags, nb_tags, cs_tags, data_obj.tags):
+        print(tag, lr_t, nb_t, cs_t)
+
+    A = 0.66
+    B = 0.64
+    C = 0.2
+
+    preds = []
+    for lr_pred, nb_pred, cs_pred in zip(lr_preds, nb_preds, cs_preds):
+        if lr_pred * A + nb_pred * B + cs_pred * C > (A + B + C) / 6:
+            pred = 1
+        else:
+            pred = 0
+        preds.append(pred)
+    return preds
+
+
+def multifaceted_accuracy(data_obj):
+    predictions = multifaceted_predictions(data_obj)
+    from sklearn.metrics import accuracy_score
+    return accuracy_score(data_obj.target, predictions)
 
 
 def main():
     d = Data()
-    data, target, tags = d.data, d.target, d.tags
-
-    from logistic_regression import prep_data
-    lr_data = prep_data(data)
-
-    ## get_accuracy_naive_bayes(data, target)
-    # Accuracy %d 0.6557377049180327
-
-    ## get_accuracy_logistic_regression(data, target):
-    # from logistic_regression import prep_data
-    # features_nd = prep_data(data)
-    # from sklearn.model_selection import train_test_split
-    # X_train, X_test, y_train, y_test = train_test_split(features_nd, target, train_size=0.5, test_size=0.3,
-    #                                                     random_state=1234, shuffle=False)
-    # # print(y_test[0], X_test[0])
-    # acc=get_accuracy_logistic_regression(X_train, y_train, X_test, y_test)
-    # print(acc)
-    # [Accuracy]: 0.6739130434782609
-
-    # nb_preds, lr_preds, target = run_cross_validation(data, target)
-    # store_preds(tags, nb_preds, "nb_preds")
-    # store_preds(tags, lr_preds, "lr_preds")
-
-    from cosine_similarity import CosineSimilarity
-    cs = CosineSimilarity()
-    similarity_scores, tags = cs.predict(d)
-    store_preds(tags, similarity_scores, "cs_scores")
-
-    import numpy as np
-    data = np.array([[s] for s in similarity_scores])
-
-    target = np.array(target)
-    cs_preds, target = get_cross_validation_predictions_cs(data, target)
-    store_preds(tags, cs_preds, "cs_preds")
+    accuracy = multifaceted_accuracy(d)
+    print(accuracy)
 
 
 if __name__ == "__main__":
