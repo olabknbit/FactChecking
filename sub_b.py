@@ -17,15 +17,15 @@ def get_pred_filename(method):
 
 
 def get_cs_pred_filename():
-    return get_pred_filename('cs')
+    return get_pred_filename(CS)
 
 
 def get_nb_pred_filename():
-    return get_pred_filename('nb')
+    return get_pred_filename(NB)
 
 
 def get_lr_pred_filename():
-    return get_pred_filename('lr')
+    return get_pred_filename(LR)
 
 
 def get_results_filename(methods):
@@ -228,6 +228,7 @@ def get_cross_validation_predictions(data_obj, data, target, tags, method):
     loo.get_n_splits(data)
 
     preds = []
+    print(method.__name__)
     for train_index, test_index in loo.split(data):
         indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
         train_index = np.delete(train_index, indexes_to_leave_out, 0)
@@ -306,7 +307,7 @@ def get_cs_preds(data_obj):
     data = np.array(similarity_scores)
     target = np.array(data_obj.target)
     cs_preds, target = get_cross_validation_predictions_cs(data_obj, data, target, tags)
-    store_preds(tags, cs_preds, 'data/b/web_features_pred.txt')
+    store_preds(tags, cs_preds, filename)
     return cs_preds, tags
 
 
@@ -372,22 +373,13 @@ def multifaceted_accuracy(data_obj, methods):
 
 def main():
     d = Data()
-    methods = [LR, NB, CS]
+    methods = [CS, LR, NB]
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     results = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
               % (accuracy, precision, AP, recall, IoU)
     print(results)
-    # with open(get_results_filename(methods), 'w') as f:
-    #     f.write(results)
-    # l = d.split_train_test()
-    # acc = get_accuracy_naive_bayes(*l)
-    # print(acc)
-    #
-    # from logistic_regression import prep_data
-    # data = prep_data(d.data)
-    # l = split_train_test(data, d.target)
-    # acc = get_accuracy_logistic_regression(*l)
-    # print(acc)
+    with open(get_results_filename(methods), 'w') as f:
+        f.write(results)
 
 
 if __name__ == "__main__":
