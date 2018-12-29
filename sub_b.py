@@ -393,10 +393,10 @@ def main():
     methods = [CS, LR, NB]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
-    results = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
+    metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
               % (accuracy, precision, AP, recall, IoU)
-    print(results)
-    save_results_to_file(results, methods)
+    print(metrics)
+    save_results_to_file(metrics, methods)
 
 
 if __name__ == "__main__":
