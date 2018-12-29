@@ -1,6 +1,7 @@
 CS_PREDS_FILENAME = 'data/b/cs_preds.txt'
 LR_PREDS_FILENAME = 'data/b/lr_preds.txt'
 NB_PREDS_FILENAME = 'data/b/nb_preds.txt'
+CS_SCORES_FILENAME = 'data/b/cs_scores.txt'
 
 
 def clean_data(data):
@@ -106,6 +107,20 @@ class Data:
                 snippet = prts[1].strip()
                 snippets[tag] = snippet
         return snippets
+
+
+def read_features(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+        tags = []
+        features = []
+        for line in lines:
+            prts = line.split('\t')
+            tag = prts[0]
+            feature = [float(f.strip()) for f in prts[1:]]
+            features.append(feature)
+            tags.append(tag)
+    return features, tags
 
 
 def read_preds(filename):
@@ -219,20 +234,24 @@ def get_nb_preds(data_obj):
 def get_cs_preds(data_obj):
     import os
     exists = os.path.isfile(CS_PREDS_FILENAME)
-    if exists:
+    CS_SCORES_FILENAME = 'data/b/web_features.txt'
+    if not exists:
         cs_preds, tags = read_preds(CS_PREDS_FILENAME)
+        return cs_preds, tags
     else:
-        from cosine_similarity import CosineSimilarity
-        cs = CosineSimilarity()
-        similarity_scores, tags = cs.predict(data_obj)
-        store_preds(tags, similarity_scores, "cs_scores")
+        similarity_scores, tags = read_features(CS_SCORES_FILENAME)
+    #     TODO: fix web scrapping before using
+    # else:
+    #     from cosine_similarity import CosineSimilarity
+    #     cs = CosineSimilarity()
+    #     similarity_scores, tags = cs.predict(data_obj)
+    #     store_preds(tags, similarity_scores, CS_SCORES_FILENAME)
 
-        import numpy as np
-        data = np.array([[s] for s in similarity_scores])
-
-        target = np.array(data_obj.target)
-        cs_preds, target = get_cross_validation_predictions_cs(data, target)
-        store_preds(tags, cs_preds, CS_PREDS_FILENAME)
+    import numpy as np
+    data = np.array(similarity_scores)
+    target = np.array(data_obj.target)
+    cs_preds, target = get_cross_validation_predictions_cs(data, target)
+    store_preds(tags, cs_preds, 'data/b/web_features_pred.txt')
     return cs_preds, tags
 
 
@@ -248,16 +267,13 @@ def multifaceted_predictions(data_obj):
     nb_preds, nb_tags = sort_tags(*get_nb_preds(data_obj), data_obj.tags)
     cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
 
-    for lr_t, nb_t, cs_t, tag in zip(lr_tags, nb_tags, cs_tags, data_obj.tags):
-        print(tag, lr_t, nb_t, cs_t)
-
-    A = 0.66
-    B = 0.64
-    C = 0.2
+    A = 1
+    B = 1
+    C = 1
 
     preds = []
     for lr_pred, nb_pred, cs_pred in zip(lr_preds, nb_preds, cs_preds):
-        if lr_pred * A + nb_pred * B + cs_pred * C > (A + B + C) / 6:
+        if lr_pred * A + nb_pred * B + cs_pred * C > (A + B + C) / 3:
             pred = 1
         else:
             pred = 0
