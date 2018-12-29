@@ -1,0 +1,5 @@
+accuracy (A): 0.645902
+precision (P): 0.629412
+average precision (AP): 0.590614
+recall (R): 0.703947
+jaccard (IoU): 0.645902
