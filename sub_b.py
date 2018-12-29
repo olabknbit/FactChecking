@@ -55,7 +55,7 @@ class Data:
                 tags = []
                 lines = questions_file.readlines()
 
-                last_question = ''
+                last_question_tag = ''
                 answers = []
                 for line in lines:
                     prts = line.split('\t')
@@ -63,15 +63,16 @@ class Data:
                     cat = prts[1]
                     text = prts[2].strip()
                     if cat == 'NA':
-                        if last_question != '':
-                            questions_d[tag] = answers
-                        last_question = text
+                        if last_question_tag != '':
+                            questions_d[last_question_tag] = answers
+                        last_question_tag = tag
                         answers = []
                     if cat == 'True' or cat == 'False':
                         answers.append(tag)
                         data.append(text)
                         target.append(categories_d[cat])
                         tags.append(tag)
+                questions_d[last_question_tag] = answers
             return data, target, tags
 
         train_data, train_target, train_tags = get_data_from_file('data/b/b-factual-q-a-clean-test.txt',
@@ -107,6 +108,12 @@ class Data:
                 snippet = prts[1].strip()
                 snippets[tag] = snippet
         return snippets
+
+    def is_question(self, tag):
+        return tag in self.questions_d
+
+    def get_all_aswers_to_question(self, tag):
+        return self.questions_d[tag]
 
 
 def read_features(filename):
@@ -167,7 +174,19 @@ def get_predictions_cosine_similarity(train_data, train_target, test_data):
     return get_predictions_logistic_regression(train_data, train_target, test_data)
 
 
-def get_cross_validation_predictions(data, target, method):
+def get_all_questions_belonging_to_thread(data_obj, tags, index):
+    tag = tags[index]
+    if not data_obj.is_question(tag):
+        q_tag = get_question_tag(tag)
+    else:
+        q_tag = tag
+    tlo = data_obj.get_all_aswers_to_question(q_tag)
+    indexes = [tags.index(t) for t in tlo if tag != t]
+    indexes = [i if index > i else i - 1 for i in indexes]
+    return indexes
+
+
+def get_cross_validation_predictions(data_obj, data, target, tags, method):
     import numpy as np
     data = np.array(data)
     target = np.array(target)
@@ -178,6 +197,8 @@ def get_cross_validation_predictions(data, target, method):
 
     preds = []
     for train_index, test_index in loo.split(data):
+        indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
+        train_index = np.delete(train_index, indexes_to_leave_out, 0)
         train_target, test_target = target[train_index], target[test_index]
         train_data, test_data = data[train_index], data[test_index]
         pred = method(train_data, train_target, test_data)
@@ -187,16 +208,16 @@ def get_cross_validation_predictions(data, target, method):
     return preds, target
 
 
-def get_cross_validation_predictions_lr(data, target):
-    return get_cross_validation_predictions(data, target, get_predictions_logistic_regression)
+def get_cross_validation_predictions_lr(data_obj, data, target, tags):
+    return get_cross_validation_predictions(data_obj, data, target, tags, get_predictions_logistic_regression)
 
 
-def get_cross_validation_predictions_nb(data, target):
-    return get_cross_validation_predictions(data, target, get_predictions_naive_bayes)
+def get_cross_validation_predictions_nb(data_obj, data, target, tags):
+    return get_cross_validation_predictions(data_obj, data, target, tags, get_predictions_naive_bayes)
 
 
-def get_cross_validation_predictions_cs(data, target):
-    return get_cross_validation_predictions(data, target, get_predictions_cosine_similarity)
+def get_cross_validation_predictions_cs(data_obj, data, target, tags):
+    return get_cross_validation_predictions(data_obj, data, target, tags, get_predictions_cosine_similarity)
 
 
 def store_preds(tags, preds, title):
@@ -214,7 +235,7 @@ def get_lr_preds(data_obj):
         from logistic_regression import prep_data
         lr_data = prep_data(data_obj.data)
         tags = data_obj.tags
-        lr_preds, target = get_cross_validation_predictions_lr(lr_data, data_obj.target)
+        lr_preds, target = get_cross_validation_predictions_lr(data_obj, lr_data, data_obj.target, tags)
         store_preds(data_obj.tags, lr_preds, LR_PREDS_FILENAME)
     return lr_preds, tags
 
@@ -225,7 +246,7 @@ def get_nb_preds(data_obj):
     if exists:
         nb_preds, tags = read_preds(NB_PREDS_FILENAME)
     else:
-        nb_preds, target = get_cross_validation_predictions_nb(data_obj.data, data_obj.target)
+        nb_preds, target = get_cross_validation_predictions_nb(data_obj, data_obj.data, data_obj.target, data_obj.tags)
         tags = data_obj.tags
         store_preds(data_obj.tags, nb_preds, NB_PREDS_FILENAME)
     return nb_preds, tags
@@ -250,7 +271,7 @@ def get_cs_preds(data_obj):
     import numpy as np
     data = np.array(similarity_scores)
     target = np.array(data_obj.target)
-    cs_preds, target = get_cross_validation_predictions_cs(data, target)
+    cs_preds, target = get_cross_validation_predictions_cs(data_obj, data, target, tags)
     store_preds(tags, cs_preds, 'data/b/web_features_pred.txt')
     return cs_preds, tags
 
@@ -283,7 +304,8 @@ def multifaceted_predictions(data_obj):
 
 def multifaceted_accuracy(data_obj):
     predictions = multifaceted_predictions(data_obj)
-    from sklearn.metrics import accuracy_score, precision_score, average_precision_score, recall_score, jaccard_similarity_score
+    from sklearn.metrics import accuracy_score, precision_score, average_precision_score, recall_score, \
+        jaccard_similarity_score
     return accuracy_score(data_obj.target, predictions), \
            precision_score(data_obj.target, predictions), \
            average_precision_score(data_obj.target, predictions), \
