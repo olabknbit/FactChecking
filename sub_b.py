@@ -332,7 +332,7 @@ def sort_tags(preds, ts, tags):
 
 def multifaceted_predictions(data_obj, methods):
     def get_baseline(coefs):
-        return sum(coefs) / len(coefs)
+        return sum(coefs) / 2
 
     def get_preds(various_preds, coefs):
         baseline = get_baseline(coefs)
