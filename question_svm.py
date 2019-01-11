@@ -11,7 +11,7 @@ from SVM_classifier import SVM_classification
 
 
 def get_data():
-    file = "all-yquestions-clean.txt"
+    file = "data/a/all-yquestions-clean.txt"
     data_all = pd.read_csv(file, sep='\t', header=None)
     data_all = shuffle(data_all)
     data = data_all.iloc[:, 2]
