@@ -49,21 +49,6 @@ def get_svm_pred_filename():
 def get_results_filename(methods):
     return PREFIX + RESULTS_DIR + '-'.join(methods) + ADD_ON + '.txt'
 
-# NOT USED
-# def clean_data(data):
-#     import re
-#
-#     REPLACE_NO_SPACE = re.compile("(\.)|(;)|(:)|(!)|(\')|(\?)|(,)|(\")|(\()|(\))|(\[)|(\])|(=)|(_)|(\*)|(://)")
-#     REPLACE_WITH_SPACE = re.compile("(<br\s*/><br\s*/>)|(-)|(/)(&\s\s\s)")
-#
-#     def preprocess_reviews(text):
-#         text = [REPLACE_NO_SPACE.sub("", line.lower()) for line in text]
-#         text = [REPLACE_WITH_SPACE.sub(" ", line) for line in text]
-#
-#         return text
-#
-#     return preprocess_reviews(data)
-
 
 def split_train_test(data, target, split=0.5):
     n = int(len(data) * split)
@@ -430,7 +415,7 @@ def save_results_to_file(results, methods):
 
 def main():
     d = Data()
-    methods = [NB]
+    methods = [CS, LR, NB, SVM]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
