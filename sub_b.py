@@ -430,7 +430,7 @@ def save_results_to_file(results, methods):
 
 def main():
     d = Data()
-    methods = [CS,NB, SVM, LR]
+    methods = [NB]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
