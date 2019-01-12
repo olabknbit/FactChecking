@@ -10,7 +10,8 @@ CS_FEATURES_FILENAME = 'data/b/features/web_features.txt'
 # methods
 LR = 'lr'
 NB = 'nb'
-CS = 'cs'
+CS = 'cs-with-svm'
+SVM = 'svm-no-stop-words-removal'
 
 
 def get_data_filename(mode):
@@ -41,23 +42,12 @@ def get_lr_pred_filename():
     return get_pred_filename(LR)
 
 
+def get_svm_pred_filename():
+    return get_pred_filename(SVM)
+
+
 def get_results_filename(methods):
     return PREFIX + RESULTS_DIR + '-'.join(methods) + ADD_ON + '.txt'
-
-
-def clean_data(data):
-    import re
-
-    REPLACE_NO_SPACE = re.compile("(\.)|(;)|(:)|(!)|(\')|(\?)|(,)|(\")|(\()|(\))|(\[)|(\])|(=)|(_)|(\*)|(://)")
-    REPLACE_WITH_SPACE = re.compile("(<br\s*/><br\s*/>)|(-)|(/)(&\s\s\s)")
-
-    def preprocess_reviews(text):
-        text = [REPLACE_NO_SPACE.sub("", line.lower()) for line in text]
-        text = [REPLACE_WITH_SPACE.sub(" ", line) for line in text]
-
-        return text
-
-    return preprocess_reviews(data)
 
 
 def split_train_test(data, target, split=0.5):
@@ -215,7 +205,20 @@ def get_accuracy_logistic_regression(train_data, train_target, test_data, test_t
 
 
 def get_predictions_cosine_similarity(train_data, train_target, test_data):
-    return get_predictions_logistic_regression(train_data, train_target, test_data)
+    return get_predictions_svm(train_data, train_target, test_data, with_pipeline=False)
+
+
+def get_predictions_svm(train_data, train_target, test_data, with_pipeline=True):
+    from SVM_classifier import SVM_classifier
+    svm = SVM_classifier(with_pipeline)
+    svm.train(train_data, train_target)
+    return svm.get_predictions(test_data)
+
+
+def get_accuracy_svm(train_data, train_target, test_data, test_target):
+    predictions = get_predictions_svm(train_data, train_target, test_data)
+    from sklearn.metrics import accuracy_score
+    return accuracy_score(test_target, predictions)
 
 
 def get_all_questions_belonging_to_thread(data_obj, tags, index):
@@ -240,7 +243,6 @@ def get_cross_validation_predictions(data_obj, data, target, tags, method):
     loo.get_n_splits(data)
 
     preds = []
-    print(method.__name__)
     for train_index, test_index in loo.split(data):
         indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
         train_index = np.delete(train_index, indexes_to_leave_out, 0)
@@ -265,6 +267,10 @@ def get_cross_validation_predictions_cs(data_obj, data, target, tags):
     return get_cross_validation_predictions(data_obj, data, target, tags, get_predictions_cosine_similarity)
 
 
+def get_cross_validation_predictions_svm(data_obj, data, target, tags):
+    return get_cross_validation_predictions(data_obj, data, target, tags, get_predictions_svm)
+
+
 def store_preds(tags, preds, title):
     with open(title, 'w') as f:
         f.writelines([tag + '\t' + str(pred) + '\n' for tag, pred in zip(tags, preds)])
@@ -284,6 +290,20 @@ def get_lr_preds(data_obj):
         lr_preds, target = get_cross_validation_predictions_lr(data_obj, lr_data, data_obj.target, tags)
         store_preds(data_obj.tags, lr_preds, filename)
     return lr_preds, tags
+
+
+def get_svm_preds(data_obj):
+    import os
+    filename = get_svm_pred_filename()
+    exists = os.path.isfile(filename)
+    if exists:
+        preds, tags = read_preds(filename)
+
+    else:
+        tags = data_obj.tags
+        preds, target = get_cross_validation_predictions_svm(data_obj, data_obj.data, data_obj.target, tags)
+        store_preds(data_obj.tags, preds, filename)
+    return preds, tags
 
 
 def get_nb_preds(data_obj):
@@ -363,6 +383,11 @@ def multifaceted_predictions(data_obj, methods):
         cs_preds, cs_tags = sort_tags(*get_cs_preds(data_obj), data_obj.tags)
         various_preds.append(cs_preds)
         coefs.append(coef)
+    if SVM in methods:
+        coef = 1
+        svm_preds, svm_tags = sort_tags(*get_svm_preds(data_obj), data_obj.tags)
+        various_preds.append(svm_preds)
+        coefs.append(coef)
 
     return get_preds(zip(*various_preds), coefs)
 
@@ -390,7 +415,7 @@ def save_results_to_file(results, methods):
 
 def main():
     d = Data()
-    methods = [CS, LR, NB]
+    methods = [CS, LR, NB, SVM]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
