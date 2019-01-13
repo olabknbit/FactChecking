@@ -5,7 +5,7 @@ from sklearn.pipeline import Pipeline
 
 
 class SVM_classifier:
-    def __init__(self, with_pipeline=False):
+    def __init__(self, with_pipeline=False, onnx_filename=None):
         if with_pipeline:
             self.classifier = Pipeline([('vect', CountVectorizer()), ('tfidf', TfidfTransformer()),
                                         ('clf-svm',
@@ -13,6 +13,7 @@ class SVM_classifier:
                                                        random_state=42))])
         else:
             self.classifier = SGDClassifier(loss='hinge', penalty='l2', alpha=1e-3, n_iter=5, random_state=42)
+        self.onnx_filename = onnx_filename
 
     def train(self, train_data, train_target):
         self.classifier.fit(train_data, train_target)
