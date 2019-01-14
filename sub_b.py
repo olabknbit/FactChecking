@@ -4,14 +4,18 @@ PREDS_DIR = 'preds/'
 FEATURES_DIR = 'features/'
 RESULTS_DIR = 'results/'
 DATA_DIR = 'data/'
+MODELS_DIR = 'models/'
 ADD_ON = ''
-CS_FEATURES_FILENAME = 'data/b/features/web_features.txt'
 
 # methods
 LR = 'lr'
-NB = 'nb'
+NB = 'nb-gaussian'
 CS = 'cs-with-svm'
 SVM = 'svm-no-stop-words-removal'
+
+# features
+WEB = 'web'
+COUNT_VECTORIZER = 'count_vectorizer'
 
 
 def get_data_filename(mode):
@@ -30,6 +34,18 @@ def get_pred_filename(method):
     return PREFIX + PREDS_DIR + method + '_preds' + ADD_ON + '.txt'
 
 
+def get_features_filename(which):
+    return PREFIX + FEATURES_DIR + which + '_features.txt'
+
+
+def get_serial_filename(method, q_tag=None):
+    if q_tag is None:
+        q_tag = ""
+    else:
+        q_tag = "_" + q_tag
+    return PREFIX + MODELS_DIR + method + q_tag + ".0"
+
+
 def get_cs_pred_filename():
     return get_pred_filename(CS)
 
@@ -44,6 +60,26 @@ def get_lr_pred_filename():
 
 def get_svm_pred_filename():
     return get_pred_filename(SVM)
+
+
+def get_web_features_filename():
+    return get_features_filename(WEB)
+
+
+def get_serial_filename_nb(q_tag=None):
+    return get_serial_filename(NB, q_tag=q_tag)
+
+
+def get_serial_filename_svm(q_tag=None):
+    return get_serial_filename(SVM, q_tag=q_tag)
+
+
+def get_serial_filename_lr(q_tag=None):
+    return get_serial_filename(LR, q_tag=q_tag)
+
+
+def get_serial_filename_cs(q_tag=None):
+    return get_serial_filename(CS, q_tag=q_tag)
 
 
 def get_results_filename(methods):
@@ -178,9 +214,9 @@ def read_preds(filename):
     return preds, tags
 
 
-def get_predictions_naive_bayes(train_data, train_target, test_data):
+def get_predictions_naive_bayes(train_data, train_target, test_data, q_tag=None):
     from naive_bayes import NaiveBayes
-    nb = NaiveBayes()
+    nb = NaiveBayes(serial_filename=get_serial_filename_nb(q_tag=q_tag))
     nb.train(train_data, train_target)
     return nb.get_predictions(test_data)
 
@@ -191,9 +227,9 @@ def get_accuracy_naive_bayes(train_data, train_target, test_data, test_target):
     return accuracy_score(test_target, predictions)
 
 
-def get_predictions_logistic_regression(train_data, train_target, test_data):
+def get_predictions_logistic_regression(train_data, train_target, test_data, q_tag=None):
     from logistic_regression import LogisticRegression
-    lr = LogisticRegression()
+    lr = LogisticRegression(serial_filename=get_serial_filename_lr(q_tag=q_tag))
     lr.train(train_data, train_target)
     return lr.get_predictions(test_data)
 
@@ -204,15 +240,21 @@ def get_accuracy_logistic_regression(train_data, train_target, test_data, test_t
     return accuracy_score(test_target, predictions)
 
 
-def get_predictions_cosine_similarity(train_data, train_target, test_data):
-    return get_predictions_svm(train_data, train_target, test_data, with_pipeline=False)
-
-
-def get_predictions_svm(train_data, train_target, test_data, with_pipeline=True):
+def _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=True, serial_filename=None):
     from SVM_classifier import SVM_classifier
-    svm = SVM_classifier(with_pipeline)
+    svm = SVM_classifier(with_pipeline, serial_filename=serial_filename)
     svm.train(train_data, train_target)
     return svm.get_predictions(test_data)
+
+
+def get_predictions_cosine_similarity(train_data, train_target, test_data, q_tag=None):
+    return _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=False,
+                                       serial_filename=get_serial_filename_cs(q_tag=q_tag))
+
+
+def get_predictions_svm(train_data, train_target, test_data, q_tag=None):
+    return _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=True,
+                                       serial_filename=get_serial_filename_svm(q_tag=q_tag))
 
 
 def get_accuracy_svm(train_data, train_target, test_data, test_target):
@@ -230,7 +272,7 @@ def get_all_questions_belonging_to_thread(data_obj, tags, index):
     tlo = data_obj.get_all_aswers_to_question(q_tag)
     indexes = [tags.index(t) for t in tlo if tag != t]
     indexes = [i if index > i else i - 1 for i in indexes]
-    return indexes
+    return indexes, q_tag
 
 
 def get_cross_validation_predictions(data_obj, data, target, tags, method):
@@ -244,12 +286,11 @@ def get_cross_validation_predictions(data_obj, data, target, tags, method):
 
     preds = []
     for train_index, test_index in loo.split(data):
-        indexes_to_leave_out = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
+        indexes_to_leave_out, q_tag = get_all_questions_belonging_to_thread(data_obj, tags, index=list(test_index)[0])
         train_index = np.delete(train_index, indexes_to_leave_out, 0)
         train_target, test_target = target[train_index], target[test_index]
         train_data, test_data = data[train_index], data[test_index]
-        pred = method(train_data, train_target, test_data)
-
+        pred = method(train_data, train_target, test_data, q_tag)
         preds.append(pred[0])
 
     return preds, target
@@ -278,17 +319,16 @@ def store_preds(tags, preds, title):
 
 def get_lr_preds(data_obj):
     import os
-    filename = get_lr_pred_filename()
-    exists = os.path.isfile(filename)
+    preds_filename = get_lr_pred_filename()
+    exists = os.path.isfile(preds_filename)
     if exists:
-        lr_preds, tags = read_preds(filename)
-
+        lr_preds, tags = read_preds(preds_filename)
     else:
         from logistic_regression import prep_data
-        lr_data = prep_data(data_obj.data)
+        lr_features = prep_data(data_obj.data)
         tags = data_obj.tags
-        lr_preds, target = get_cross_validation_predictions_lr(data_obj, lr_data, data_obj.target, tags)
-        store_preds(data_obj.tags, lr_preds, filename)
+        lr_preds, target = get_cross_validation_predictions_lr(data_obj, lr_features, data_obj.target, tags)
+        store_preds(data_obj.tags, lr_preds, preds_filename)
     return lr_preds, tags
 
 
@@ -298,7 +338,6 @@ def get_svm_preds(data_obj):
     exists = os.path.isfile(filename)
     if exists:
         preds, tags = read_preds(filename)
-
     else:
         tags = data_obj.tags
         preds, target = get_cross_validation_predictions_svm(data_obj, data_obj.data, data_obj.target, tags)
@@ -313,7 +352,9 @@ def get_nb_preds(data_obj):
     if exists:
         nb_preds, tags = read_preds(filename)
     else:
-        nb_preds, target = get_cross_validation_predictions_nb(data_obj, data_obj.data, data_obj.target, data_obj.tags)
+        from naive_bayes import prep_data
+        features = prep_data(data_obj.data)
+        nb_preds, target = get_cross_validation_predictions_nb(data_obj, features, data_obj.target, data_obj.tags)
         tags = data_obj.tags
         store_preds(data_obj.tags, nb_preds, filename)
     return nb_preds, tags
@@ -325,21 +366,13 @@ def get_cs_preds(data_obj):
     exists = os.path.isfile(filename)
     if exists:
         cs_preds, tags = read_preds(filename)
-        return cs_preds, tags
     else:
-        similarity_scores, tags = read_features(CS_FEATURES_FILENAME)
-    #     TODO: fix web scrapping before using
-    # else:
-    #     from cosine_similarity import CosineSimilarity
-    #     cs = CosineSimilarity()
-    #     similarity_scores, tags = cs.predict(data_obj)
-    #     store_preds(tags, similarity_scores, filename)
-
-    import numpy as np
-    data = np.array(similarity_scores)
-    target = np.array(data_obj.target)
-    cs_preds, target = get_cross_validation_predictions_cs(data_obj, data, target, tags)
-    store_preds(tags, cs_preds, filename)
+        similarity_scores, tags = read_features(get_web_features_filename())
+        import numpy as np
+        data = np.array(similarity_scores)
+        target = np.array(data_obj.target)
+        cs_preds, target = get_cross_validation_predictions_cs(data_obj, data, target, tags)
+        store_preds(tags, cs_preds, filename)
     return cs_preds, tags
 
 
@@ -415,7 +448,7 @@ def save_results_to_file(results, methods):
 
 def main():
     d = Data()
-    methods = [CS, LR, NB, SVM]
+    methods = [NB, SVM, CS]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \
