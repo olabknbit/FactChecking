@@ -8,7 +8,7 @@ MODELS_DIR = 'models/'
 ADD_ON = ''
 
 # methods
-LR = 'lr-save'
+LR = 'lr'
 NB = 'nb-gaussian'
 CS = 'cs-with-svm'
 SVM = 'svm-no-stop-words-removal'
@@ -38,12 +38,12 @@ def get_features_filename(which):
     return PREFIX + FEATURES_DIR + which + '_features.txt'
 
 
-def get_onnx_filename(method, q_tag=None):
+def get_serial_filename(method, q_tag=None):
     if q_tag is None:
         q_tag = ""
     else:
         q_tag = "_" + q_tag
-    return PREFIX + MODELS_DIR + method + q_tag + ".onnx"
+    return PREFIX + MODELS_DIR + method + q_tag + ".0"
 
 
 def get_cs_pred_filename():
@@ -66,20 +66,20 @@ def get_web_features_filename():
     return get_features_filename(WEB)
 
 
-def get_onnx_filename_nb(q_tag=None):
-    return get_onnx_filename(NB, q_tag=q_tag)
+def get_serial_filename_nb(q_tag=None):
+    return get_serial_filename(NB, q_tag=q_tag)
 
 
-def get_onnx_filename_svm(q_tag=None):
-    return get_onnx_filename(SVM, q_tag=q_tag)
+def get_serial_filename_svm(q_tag=None):
+    return get_serial_filename(SVM, q_tag=q_tag)
 
 
-def get_onnx_filename_lr(q_tag=None):
-    return get_onnx_filename(LR, q_tag=q_tag)
+def get_serial_filename_lr(q_tag=None):
+    return get_serial_filename(LR, q_tag=q_tag)
 
 
-def get_onnx_filename_cs(q_tag=None):
-    return get_onnx_filename(CS, q_tag=q_tag)
+def get_serial_filename_cs(q_tag=None):
+    return get_serial_filename(CS, q_tag=q_tag)
 
 
 def get_results_filename(methods):
@@ -216,7 +216,7 @@ def read_preds(filename):
 
 def get_predictions_naive_bayes(train_data, train_target, test_data, q_tag=None):
     from naive_bayes import NaiveBayes
-    nb = NaiveBayes(onnx_filename=get_onnx_filename_nb(q_tag=q_tag))
+    nb = NaiveBayes(serial_filename=get_serial_filename_nb(q_tag=q_tag))
     nb.train(train_data, train_target)
     return nb.get_predictions(test_data)
 
@@ -229,7 +229,7 @@ def get_accuracy_naive_bayes(train_data, train_target, test_data, test_target):
 
 def get_predictions_logistic_regression(train_data, train_target, test_data, q_tag=None):
     from logistic_regression import LogisticRegression
-    lr = LogisticRegression(onnx_filename=get_onnx_filename_lr(q_tag=q_tag))
+    lr = LogisticRegression(serial_filename=get_serial_filename_lr(q_tag=q_tag))
     lr.train(train_data, train_target)
     return lr.get_predictions(test_data)
 
@@ -240,21 +240,21 @@ def get_accuracy_logistic_regression(train_data, train_target, test_data, test_t
     return accuracy_score(test_target, predictions)
 
 
-def _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=True, onnx_filename=None):
+def _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=True, serial_filename=None):
     from SVM_classifier import SVM_classifier
-    svm = SVM_classifier(with_pipeline, onnx_filename=onnx_filename)
+    svm = SVM_classifier(with_pipeline, serial_filename=serial_filename)
     svm.train(train_data, train_target)
     return svm.get_predictions(test_data)
 
 
 def get_predictions_cosine_similarity(train_data, train_target, test_data, q_tag=None):
     return _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=False,
-                                       onnx_filename=get_onnx_filename_cs(q_tag=q_tag))
+                                       serial_filename=get_serial_filename_cs(q_tag=q_tag))
 
 
 def get_predictions_svm(train_data, train_target, test_data, q_tag=None):
     return _get_predictions_svm_helper(train_data, train_target, test_data, with_pipeline=True,
-                                       onnx_filename=get_onnx_filename_svm(q_tag=q_tag))
+                                       serial_filename=get_serial_filename_svm(q_tag=q_tag))
 
 
 def get_accuracy_svm(train_data, train_target, test_data, test_target):
@@ -448,7 +448,7 @@ def save_results_to_file(results, methods):
 
 def main():
     d = Data()
-    methods = [NB]
+    methods = [NB, SVM, CS]
     methods.sort()
     accuracy, precision, AP, recall, IoU = multifaceted_accuracy(d, methods)
     metrics = "accuracy (A): %f\nprecision (P): %f\naverage precision (AP): %f\nrecall (R): %f\njaccard (IoU): %f" \

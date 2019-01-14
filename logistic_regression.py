@@ -5,18 +5,18 @@ def prep_data(data):
 
 
 class LogisticRegression:
-    def __init__(self, onnx_filename=None):
+    def __init__(self, serial_filename=None):
         from sklearn.linear_model import LogisticRegression
-        self.log_model = LogisticRegression(solver='lbfgs')
-        self.onnx_filename = onnx_filename
+        self.classifier = LogisticRegression(solver='lbfgs')
+        self.serial_filename = serial_filename
 
     def train(self, X_train, y_train):
-        self.log_model.fit(X=X_train, y=y_train)
+        self.classifier.fit(X=X_train, y=y_train)
         self.serialize()
-        return self.log_model
+        return self.classifier
 
     def get_predictions(self, X_test):
-        return self.log_model.predict(X_test)
+        return self.classifier.predict(X_test)
 
     def get_accuracy(self, data, y_test):
         y_pred = self.get_predictions(data)
@@ -24,4 +24,7 @@ class LogisticRegression:
         return accuracy_score(y_test, y_pred)
 
     def serialize(self):
-        pass
+        import pickle
+        s = pickle.dumps(self.classifier)
+        with open(self.serial_filename, 'wb') as f:
+            f.write(s)
