@@ -1,0 +1,63 @@
+question_NB_text.pkl
+NB accuracy score:  0.6339285714285714
+NB precision score:  0.6628036156137959
+NB recall:  0.5231853552749075
+NB f1:  0.5424408231282122
+NB accuracy on train  0.9988814317673378
+
+question_NB_text-pos.pkl
+NB accuracy score:  0.5580357142857143
+NB precision score:  0.7466422466422467
+NB recall:  0.3788849369852263
+NB f1:  0.3289252778614481
+NB accuracy on train  0.9966442953020134
+
+question_standard_text.pkl
+SVM grid search best score  0.6387024608501118
+SVM grid search parameters  {'clf-svm__C': 1, 'tfidf__norm': None, 'tfidf__use_idf': False, 'vect__ngram_range': (1, 3), 'vect__stop_words': None}
+SVM best param accuracy on train  1.0
+SVM best param accuracy score:  0.6116071428571429
+SVM best param precision score:  0.5956497124638717
+SVM best param recall:  0.5942601197699312
+SVM best param f1:  0.5949212353995167
+
+question_standard_text_questions.pkl
+SVM grid search best score  0.6387024608501118
+SVM grid search parameters  {'clf-svm__C': 2, 'tfidf__norm': 'l2', 'tfidf__use_idf': True, 'vect__ngram_range': (1, 1), 'vect__stop_words': None}
+SVM best param accuracy on train  0.9944071588366891
+SVM best param accuracy score:  0.59375
+SVM best param precision score:  0.5947133713252875
+SVM best param recall:  0.5635987599446168
+SVM best param f1:  0.5714247180540417
+
+question_standard_text-pos_questions.pkl
+SVM grid search best score  0.6219239373601789
+SVM grid search parameters  {'clf-svm__C': 1, 'tfidf__norm': None, 'tfidf__use_idf': True, 'vect__ngram_range': (1, 2), 'vect__stop_words': None}
+SVM best param accuracy on train  1.0
+SVM best param accuracy score:  0.6741071428571429
+SVM best param precision score:  0.6711565369060626
+SVM best param recall:  0.6380029284441049
+SVM best param f1:  0.6506245391901856
+
+question_standard_text-pos.pkl
+SVM grid search best score  0.6308724832214765
+SVM grid search parameters  {'clf-svm__C': 1, 'tfidf__norm': None, 'tfidf__use_idf': False, 'vect__ngram_range': (1, 2), 'vect__stop_words': None}
+SVM best param accuracy on train  1.0
+SVM best param accuracy score:  0.6205357142857143
+SVM best param precision score:  0.6080476080476082
+SVM best param recall:  0.5883333333333333
+SVM best param f1:  0.5937253829087384
+
+question_standard-pos_text.pkl
+SVM accuracy on train  1.0
+SVM accuracy score:  0.59375
+SVM precision score:  0.5535264523378173
+SVM recall:  0.5435467874492265
+SVM f1:  0.5451329392751987
+
+question_standard-pos_text-pos.pkl
+SVM accuracy on train  1.0
+SVM accuracy score:  0.5625
+SVM precision score:  0.5533444248430696
+SVM recall:  0.5193415885119376
+SVM f1:  0.5250196884871808

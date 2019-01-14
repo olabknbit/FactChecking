@@ -82,7 +82,7 @@ class AddPosTagTransformer(TransformerMixin):
 
 def get_data(only_questions, data_form, split):
     # file = "all-yquestions-clean.txt"
-    file = "sem-train.txt"
+    file = "data/a/data/sem-train.txt"
     data_all = pd.read_csv(file, sep='\t', header=None)
     data_all = shuffle(data_all)
     data = list(data_all.iloc[:, 2])
@@ -123,7 +123,7 @@ def get_data(only_questions, data_form, split):
 
 
 def get_eval_data(only_questions, data_form):
-    file = "sem-dev.txt"
+    file = "data/a/data/sem-dev.txt"
     data_all = pd.read_csv(file, sep='\t', header=None)
     index = data_all.iloc[:, 0]
     data = list(data_all.iloc[:, 1])
@@ -174,8 +174,8 @@ def NB_classification(train_data, train_target, test_data, test_target, stopword
     NB_tr = np.mean(predicted_tr == train_target)
     print("NB accuracy on train ", NB_tr)
 
-    joblib_file = "question_NB_text-pos.pkl"
-    joblib.dump(text_clf, joblib_file)
+    # joblib_file = "question_NB_text-pos.pkl"
+    # joblib.dump(text_clf, joblib_file)
 
 
 def SVM_classification(train_data, train_target, test_data, test_target, stopwords, pipeline, gridsearch, sc_average, eval_ind, eval_data, predict):
@@ -216,12 +216,10 @@ def SVM_classification(train_data, train_target, test_data, test_target, stopwor
         results = pd.DataFrame(list(zip(eval_ind, eval_pred)))
         results.to_csv('predict_questions0.txt', sep='\t', header=None, index=None)
 
-    joblib_file = "question_standard-pos_text-pos.pkl"
-    joblib.dump(text_clf_svm, joblib_file)
+    # joblib_file = "question_standard-pos_text-pos.pkl"
+    # joblib.dump(text_clf_svm, joblib_file)
 
     data_all = pd.read_csv('sem-dev.txt', header=None, delimiter='\t')
-    # data_all[1] = data_all[1].astype(str)
-    # model = joblib.load(args.model)
     predicted = text_clf_svm.predict(data_all.iloc[:, 1])
     data_all[2] = pd.Series(predicted)
     mapping = {0: 'opinion', 1: 'factual', 2: 'socializing'}
@@ -267,8 +265,8 @@ def SVM_classification(train_data, train_target, test_data, test_target, stopwor
             results = pd.DataFrame(list(zip(eval_ind, eval_pred)))
             results.to_csv('predict_questions0.txt', sep='\t', header=None, index=None)
 
-        joblib_file = "question_standard_text_questions.pkl"
-        joblib.dump(text_clf_svm, joblib_file)
+        # joblib_file = "question_standard_text_questions.pkl"
+        # joblib.dump(text_clf_svm, joblib_file)
 
 
 if __name__ == "__main__":
